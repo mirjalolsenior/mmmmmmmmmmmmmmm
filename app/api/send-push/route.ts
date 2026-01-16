@@ -1,6 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sendPushNotificationToAll, initWebPush } from "@/lib/push-notification-service"
 
+// Ensure this route is always executed dynamically on the server (Netlify/Next runtime).
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 // Note: In production, use a library like 'web-push'
 // npm install web-push
 // For now, this is a placeholder for the backend push sending logic

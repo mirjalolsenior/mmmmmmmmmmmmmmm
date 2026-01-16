@@ -2,6 +2,11 @@ import { NextResponse } from "next/server"
 import { checkAndSendDeliveryNotifications, checkAndSendInventoryNotifications } from "@/lib/push-notification-service"
 import { createServiceClient } from "@/lib/supabase/service"
 
+// Ensure this route is always executed dynamically on the server (Netlify/Next runtime).
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export const maxDuration = 60
 
 export async function GET(request: Request) {

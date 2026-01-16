@@ -74,10 +74,10 @@ export async function sendPushNotificationToAll(payload: PushNotificationPayload
   }
 
   try {
+    // Keep compatible with a minimal schema where 'is_active' may not exist.
     const { data: subscriptions, error } = await supabase
       .from("push_subscriptions")
       .select("*")
-      .eq("is_active", true)
       .order("created_at", { ascending: false })
 
     if (error || !subscriptions) {
@@ -117,14 +117,18 @@ export async function sendPushNotificationToAll(payload: PushNotificationPayload
 
         await webpush.sendNotification(subscriptionObject, JSON.stringify(notification))
 
-        await supabase.from("notification_logs").insert({
-          subscription_id: subscription.id,
-          title: notification.title,
-          body: notification.body,
-          icon: notification.icon,
-          status: "sent",
-          sent_at: new Date().toISOString(),
-        })
+        // Optional logging (table/columns may vary per project)
+        try {
+          await supabase.from("notification_logs").insert({
+            endpoint: subscription.endpoint,
+            title: notification.title,
+            body: notification.body,
+            status: "sent",
+            created_at: new Date().toISOString(),
+          })
+        } catch {
+          // ignore
+        }
 
         result.success++
         console.log(`[Push] Sent to ${subscription.endpoint.slice(0, 30)}...`)
@@ -132,18 +136,27 @@ export async function sendPushNotificationToAll(payload: PushNotificationPayload
         result.failed++
 
         if (error.statusCode === 410 || error.statusCode === 404) {
-          await supabase.from("push_subscriptions").update({ is_active: false }).eq("id", subscription.id)
-          console.warn(`[Push] Marked subscription as inactive (${error.statusCode})`)
+          // Subscription is gone -> delete it
+          try {
+            await supabase.from("push_subscriptions").delete().eq("endpoint", subscription.endpoint)
+            console.warn(`[Push] Deleted dead subscription (${error.statusCode})`)
+          } catch {
+            // ignore
+          }
         }
 
-        await supabase.from("notification_logs").insert({
-          subscription_id: subscription.id,
-          title: notification.title,
-          body: notification.body,
-          icon: notification.icon,
-          status: "failed",
-          error_message: error.message,
-        })
+        try {
+          await supabase.from("notification_logs").insert({
+            endpoint: subscription.endpoint,
+            title: notification.title,
+            body: notification.body,
+            status: "failed",
+            error_message: error.message,
+            created_at: new Date().toISOString(),
+          })
+        } catch {
+          // ignore
+        }
 
         result.errors.push({
           endpoint: subscription.endpoint.slice(0, 50),

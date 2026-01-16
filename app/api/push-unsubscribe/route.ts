@@ -1,6 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
 
+// Ensure this route is always executed dynamically on the server (Netlify/Next runtime).
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = createServiceClient()
@@ -10,13 +15,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Endpoint is required" }, { status: 400 })
     }
 
-    const { error } = await supabase
-      .from("push_subscriptions")
-      .update({
-        is_active: false,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("endpoint", endpoint)
+    // Minimal schema compatible: just delete by endpoint.
+    const { error } = await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint)
 
     if (error) {
       console.error("[Push] Unsubscribe error:", error)
