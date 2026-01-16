@@ -65,8 +65,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       status: "healthy",
       subscriptions: {
-        total: totalSubsCount || 0,
-        active: activeSubsCount ?? totalSubsCount || 0,
+        total: totalSubsCount ?? 0,
+        active: activeSubsCount ?? totalSubsCount ?? 0,
       },
       notifications_24h: {
         sent: sentCount,
