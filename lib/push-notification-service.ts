@@ -1,5 +1,5 @@
 import webpush from "web-push"
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/service"
 
 let webPushInitialized = false
 
@@ -63,7 +63,8 @@ export async function sendPushNotificationToAll(payload: PushNotificationPayload
     initWebPush()
   }
 
-  const supabase = await createClient()
+  // Use SERVICE_ROLE so cron/server sends can read subscriptions & write logs even when no user session exists.
+  const supabase = createServiceClient()
   const result: SendPushResult = { success: 0, failed: 0, errors: [] }
 
   const notificationTag = payload.tag || `notification-${Date.now()}`
@@ -165,7 +166,7 @@ export async function sendPushNotification(endpoint: string, payload: PushNotifi
   }
 
   try {
-    const supabase = await createClient()
+    const supabase = createServiceClient()
 
     const { data: subscription, error } = await supabase
       .from("push_subscriptions")
@@ -217,7 +218,7 @@ export async function sendPushNotification(endpoint: string, payload: PushNotifi
 }
 
 export async function checkAndSendDeliveryNotifications(): Promise<void> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   try {
     const { data: zakazlar, error } = await supabase
@@ -309,7 +310,7 @@ export async function checkAndSendDeliveryNotifications(): Promise<void> {
   } catch (error) {
     console.error("[Push] Error in checkAndSendDeliveryNotifications:", error)
 
-    const supabase = await createClient()
+    const supabase = createServiceClient()
     await supabase.from("notification_check_logs").insert({
       check_type: "delivery_dates",
       affected_count: 0,
@@ -320,7 +321,7 @@ export async function checkAndSendDeliveryNotifications(): Promise<void> {
 }
 
 export async function checkAndSendInventoryNotifications(lowStockThreshold = 10): Promise<void> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   try {
     const { data: items, error } = await supabase.from("ombor").select("*").order("qoldiq", { ascending: true })
@@ -376,7 +377,7 @@ export async function checkAndSendInventoryNotifications(lowStockThreshold = 10)
   } catch (error) {
     console.error("[Push] Error in checkAndSendInventoryNotifications:", error)
 
-    const supabase = await createClient()
+    const supabase = createServiceClient()
     await supabase.from("notification_check_logs").insert({
       check_type: "low_stock",
       affected_count: 0,

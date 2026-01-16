@@ -1,9 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/service"
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = await createClient()
+    // Use SERVICE_ROLE on the server so RLS doesn't block subscription writes/reads.
+    // (Never expose SERVICE_ROLE to the browser; this runs only on the server.)
+    const supabase = createServiceClient()
     const subscription = await request.json()
 
     if (!subscription.endpoint || !subscription.keys) {
