@@ -105,6 +105,17 @@ export async function sendPushNotificationToAll(payload: PushNotificationPayload
       ],
     }
 
+    // Some push services (notably Android/FCM WebPush endpoints) are more reliable when
+    // the payload also contains an FCM-style `notification` object.
+    // Our service worker supports both formats.
+    const payloadForSend: any = {
+      ...notification,
+      notification: {
+        title: notification.title,
+        body: notification.body,
+      },
+    }
+
     for (const subscription of subscriptions) {
       try {
         const subscriptionObject = {
@@ -115,7 +126,7 @@ export async function sendPushNotificationToAll(payload: PushNotificationPayload
           },
         }
 
-        await webpush.sendNotification(subscriptionObject, JSON.stringify(notification))
+        await webpush.sendNotification(subscriptionObject, JSON.stringify(payloadForSend))
 
         // Optional logging (table/columns may vary per project)
         try {
@@ -212,7 +223,15 @@ export async function sendPushNotification(endpoint: string, payload: PushNotifi
       },
     }
 
-    await webpush.sendNotification(subscriptionObject, JSON.stringify(notification))
+    const payloadForSend: any = {
+      ...notification,
+      notification: {
+        title: notification.title,
+        body: notification.body,
+      },
+    }
+
+    await webpush.sendNotification(subscriptionObject, JSON.stringify(payloadForSend))
 
     await supabase.from("notification_logs").insert({
       subscription_id: subscription.id,

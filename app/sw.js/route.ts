@@ -70,51 +70,59 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("push", (event) => {
   console.log("[SW] Push notification received:", event)
 
-  let notificationData = {
-    title: "Sherdor Mebel",
-    body: "Yangi xabar",
-    icon: "/icon-192.jpg",
-    badge: "/icon-192.jpg",
-    vibrate: [100, 50, 100],
-  }
+  // Defaults (safe for Android Chrome + iOS 16.4+ PWA)
+  let title = "Sherdor Mebel"
+  let body = "Yangi xabar"
+  let icon = "/icon-192.jpg"
+  let badge = "/icon-192.jpg"
+  let vibrate = [100, 50, 100]
+  let url = "/"
+  let actions = [
+    { action: "explore", title: "Ko'rish" },
+    { action: "close", title: "Yopish" },
+  ]
 
   if (event.data) {
     try {
-      const data = event.data.json()
-      notificationData = { ...notificationData, ...data }
-    } catch (error) {
-      notificationData.body = event.data.text()
+      const parsed = event.data.json()
+      console.log("[SW] Push payload:", parsed)
+
+      // Support both formats:
+      // 1) WebPush: { title, body, icon, ... }
+      // 2) FCM-style: { notification: { title, body }, ... }
+      const root = parsed || {}
+      const n = root.notification || {}
+
+      title = n.title || root.title || title
+      body = n.body || root.body || body
+      icon = root.icon || icon
+      badge = root.badge || badge
+      vibrate = root.vibrate || vibrate
+      url = (root.data && root.data.url) || root.url || url
+      actions = root.actions || actions
+    } catch (e) {
+      try {
+        body = event.data.text() || body
+      } catch {
+        // ignore
+      }
     }
   }
 
+  // IMPORTANT: Use only standard NotificationOptions fields to avoid runtime errors
   event.waitUntil(
-    self.registration.showNotification(notificationData.title, {
-      body: notificationData.body,
-      icon: notificationData.icon,
-      badge: notificationData.badge,
-      vibrate: notificationData.vibrate,
+    self.registration.showNotification(title, {
+      body,
+      icon,
+      badge,
+      vibrate,
       tag: "sherdor-mebel-notification",
       requireInteraction: true,
-      priority: "high",
-      sticky: true,
-      silent: false,
       data: {
         dateOfArrival: Date.now(),
-        url: "/",
-        ...notificationData.data,
+        url,
       },
-      actions: [
-        {
-          action: "explore",
-          title: "Ko'rish",
-          icon: "/icon-192.jpg",
-        },
-        {
-          action: "close",
-          title: "Yopish",
-          icon: "/icon-192.jpg",
-        },
-      ],
+      actions,
     }),
   )
 })
