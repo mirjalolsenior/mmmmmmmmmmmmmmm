@@ -86,34 +86,45 @@ export function HisobotlarStats({ refreshTrigger }: HisobotlarStatsProps) {
     fetchStats()
   }, [refreshTrigger])
 
-  const statCards = [
+  type StatVariant = "default" | "success" | "warning" | "danger"
+
+  type StatCard = {
+    title: string
+    value: number
+    icon: any
+    description: string
+    variant?: StatVariant
+  }
+
+  const statCards: StatCard[] = [
+
     {
       title: "Tovarlar",
       value: stats.tovarlar,
       icon: Package,
       description: "Jami tovarlar soni",
-      variant: "default" as const,
+      variant: "default",
     },
     {
       title: "Zakazlar",
       value: stats.zakazlar,
       icon: ShoppingCart,
       description: "Jami zakazlar soni",
-      variant: "default" as const,
+      variant: "default",
     },
     {
       title: "Mebel",
       value: stats.mebel,
       icon: Hammer,
       description: "Mebel ishlab chiqarish",
-      variant: "default" as const,
+      variant: "default",
     },
     {
       title: "Kronka",
       value: stats.kronka,
       icon: Scissors,
       description: "Lenta ishlab chiqarish",
-      variant: "default" as const,
+      variant: "default",
     },
   ]
 
@@ -184,22 +195,26 @@ export function HisobotlarStats({ refreshTrigger }: HisobotlarStatsProps) {
         {statCards.map((stat) => {
           const Icon = stat.icon
           const getCardColor = () => {
-            switch (stat.variant) {
+            switch (stat.variant ?? "default") {
               case "success":
                 return "border-green-500/20 bg-green-500/5"
               case "warning":
                 return "border-orange-500/20 bg-orange-500/5"
+              case "danger":
+                return "border-red-500/20 bg-red-500/5"
               default:
                 return ""
             }
           }
 
           const getTextColor = () => {
-            switch (stat.variant) {
+            switch (stat.variant ?? "default") {
               case "success":
                 return "text-green-600"
               case "warning":
                 return "text-orange-600"
+              case "danger":
+                return "text-red-600"
               default:
                 return "text-foreground"
             }
