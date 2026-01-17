@@ -1,10 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   eslint: {
-    ignoreDuringBuilds: true,
+    // Build paytida lint xatolarini yashirmaymiz: production sifati uchun.
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    // Type xatolarni ham yashirmaymiz.
+    ignoreBuildErrors: false,
   },
   images: {
     unoptimized: true,

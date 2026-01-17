@@ -3,8 +3,29 @@ export const dynamic = "force-dynamic"
 export async function GET() {
   const serviceWorkerCode = `
 // Service Worker with Web Push API support for Android and iOS PWA
-const CACHE_NAME = "sherdor-mebel-v1"
-const urlsToCache = ["/", "/manifest.json", "/icon-192.jpg", "/icon-512.jpg"]
+// NOTE:
+// - iOS Safari PWA (16.4+) supports **standard Web Push (VAPID)**.
+// - Firebase Cloud Messaging (FCM) web push is not reliable / not supported on iOS.
+// Shuning uchun bu SW Web Push uchun optimallashtirilgan.
+
+const CACHE_NAME = "sherdor-mebel-v2"
+const PRECACHE_URLS = ["/", "/manifest.json", "/icon-192.jpg", "/icon-512.jpg"]
+
+const isCacheableRequest = (req) => {
+  try {
+    if (req.method !== "GET") return false
+    const url = new URL(req.url)
+    // Faqat shu domen (same-origin)
+    if (url.origin !== self.location.origin) return false
+    // API larni cache qilmaymiz
+    if (url.pathname.startsWith("/api")) return false
+    // Service worker faylini ham cache qilmaymiz
+    if (url.pathname === "/sw.js") return false
+    return true
+  } catch {
+    return false
+  }
+}
 
 self.addEventListener("install", (event) => {
   console.log("[SW] Installing service worker...")
@@ -13,7 +34,7 @@ self.addEventListener("install", (event) => {
       .open(CACHE_NAME)
       .then((cache) => {
         console.log("[SW] Cache opened")
-        return cache.addAll(urlsToCache).catch((err) => {
+        return cache.addAll(PRECACHE_URLS).catch((err) => {
           console.warn("[SW] Some files failed to cache:", err)
           return Promise.resolve()
         })
@@ -23,28 +44,40 @@ self.addEventListener("install", (event) => {
 })
 
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") {
+  if (!isCacheableRequest(event.request)) return
+
+  // Cache-first for static assets, network-first for documents.
+  const dest = event.request.destination
+  const isDocument = dest === "document" || dest === ""
+
+  if (isDocument) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const copy = response.clone()
+          if (response && response.status === 200) {
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy))
+          }
+          return response
+        })
+        .catch(() => caches.match(event.request).then((res) => res || caches.match("/"))),
+    )
     return
   }
 
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        const responseToCache = response.clone()
-        if (!response || response.status !== 200 || response.type === "error") {
+    caches.match(event.request).then((cached) => {
+      if (cached) return cached
+      return fetch(event.request)
+        .then((response) => {
+          const copy = response.clone()
+          if (response && response.status === 200) {
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy))
+          }
           return response
-        }
-
-        // Clone the response before caching to prevent body consumption
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache)
         })
-
-        return response
-      })
-      .catch(() => {
-        return caches.match(event.request).then((response) => response || new Response("Offline"))
-      }),
+        .catch(() => cached),
+    }),
   )
 })
 
@@ -117,6 +150,8 @@ self.addEventListener("push", (event) => {
       badge,
       vibrate,
       tag: "sherdor-mebel-notification",
+      // iOS PWA'da "requireInteraction" ba'zida agresiv bo'lishi mumkin,
+      // lekin muhim xabarlar uchun foydali. Default: true.
       requireInteraction: true,
       data: {
         dateOfArrival: Date.now(),
