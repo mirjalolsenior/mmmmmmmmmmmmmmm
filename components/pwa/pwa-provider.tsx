@@ -14,6 +14,12 @@ interface PWAContextType {
   installPWA: () => Promise<void>
   notificationPermission: NotificationPermission
   requestNotificationPermission: () => Promise<void>
+  /**
+   * Backwards-compatible helper used by some UI components.
+   * Subscribes the device/browser to Web Push (VAPID) by requesting
+   * notification permission and registering/subscribing via the Service Worker.
+   */
+  subscribeToPush: () => Promise<void>
   sendNotification: (title: string, body: string) => void
   scheduleNotification: (title: string, body: string, delayMinutes: number) => void
   // kept for backwards compatibility with UI that may show a token
@@ -161,6 +167,11 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Alias used by older components (e.g. notification-manager.tsx)
+  const subscribeToPush = async () => {
+    await requestNotificationPermission()
+  }
+
   const sendNotification = (title: string, body: string) => {
     if (notificationPermission === "granted") {
       new Notification(title, {
@@ -191,6 +202,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
         installPWA,
         notificationPermission,
         requestNotificationPermission,
+        subscribeToPush,
         sendNotification,
         scheduleNotification,
         fcmToken,
