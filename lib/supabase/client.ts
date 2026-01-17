@@ -1,66 +1,33 @@
 import { createBrowserClient } from "@supabase/ssr"
+import type { SupabaseClient } from "@supabase/supabase-js"
 
-const createMockClient = () => ({
-  from: (table: string) => {
-    const mockQuery = {
-      data: [],
-      error: { message: "Supabase not configured" },
+/**
+ * Browser Supabase client.
+ *
+ * IMPORTANT:
+ * - This file is imported by many client components.
+ * - It MUST always have a stable, consistent TypeScript type.
+ *
+ * In the previous version we returned a "mock" object when env vars were missing.
+ * That made `supabase` a union type (real client | mock), which breaks TS builds
+ * for chained methods like `.delete().in(...)`.
+ *
+ * To keep builds 100% stable, we always return a real SupabaseClient type.
+ * If env vars are missing, we create a client with safe placeholder values.
+ * Runtime calls will fail fast (network/auth), but the app will still compile.
+ */
+export function createClient(): SupabaseClient<any> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:54321"
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "public-anon-key-not-set"
 
-      select: (columns = "*") => ({
-        ...mockQuery,
-        order: (column: string, options?: { ascending?: boolean }) => ({
-          ...mockQuery,
-          limit: (count: number) => Promise.resolve({ data: [], error: null }),
-        }),
-        limit: (count: number) => Promise.resolve({ data: [], error: null }),
-        eq: (column: string, value: any) => ({
-          ...mockQuery,
-          order: (column: string, options?: { ascending?: boolean }) => Promise.resolve({ data: [], error: null }),
-        }),
-      }),
-
-      insert: (values: any) =>
-        Promise.resolve({
-          data: null,
-          error: { message: "Supabase not configured - insert operation failed" },
-        }),
-
-      update: (values: any) => ({
-        eq: (column: string, value: any) =>
-          Promise.resolve({
-            data: null,
-            error: { message: "Supabase not configured - update operation failed" },
-          }),
-      }),
-
-      delete: () => ({
-        neq: (column: string, value: any) =>
-          Promise.resolve({
-            data: null,
-            error: { message: "Supabase not configured - delete operation failed" },
-          }),
-        eq: (column: string, value: any) =>
-          Promise.resolve({
-            data: null,
-            error: { message: "Supabase not configured - delete operation failed" },
-          }),
-      }),
-    }
-
-    return mockQuery
-  },
-})
-
-export function createClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-  if (!supabaseUrl || !supabaseKey) {
-    console.warn("Supabase environment variables not found. Using mock client.")
-    return createMockClient()
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.warn(
+      "[Supabase] NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY not found. " +
+        "Using placeholder client (requests will fail until env vars are configured).",
+    )
   }
 
   return createBrowserClient(supabaseUrl, supabaseKey)
 }
 
-export const supabase = createClient()
+export const supabase: SupabaseClient<any> = createClient()
